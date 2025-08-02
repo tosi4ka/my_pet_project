@@ -1,0 +1,17 @@
+node_modules/
+.vscode/
+
+.next/
+out/
+dist/
+build/
+coverage/
+
+public/
+
+*.config.js
+*.lock
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

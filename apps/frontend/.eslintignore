@@ -1,0 +1,10 @@
+node_modules/
+.vscode/
+
+.next/
+out/
+dist/
+build/
+coverage/
+
+public/
