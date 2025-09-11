@@ -22,4 +22,28 @@ export class UserService {
       where: { id },
     });
   }
+
+  async getById(id: string): Promise<User | null> {
+    return this.findById(id);
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prismaService.client.user.findUnique({
+      where: { email },
+    });
+  }
+
+  /**
+   * @param userId
+   * @param refreshTokenHash
+   */
+  async setCurrentRefreshToken(
+    userId: string,
+    refreshTokenHash: string | null,
+  ): Promise<User> {
+    return this.prismaService.client.user.update({
+      where: { id: userId },
+      data: { refreshToken: refreshTokenHash },
+    });
+  }
 }

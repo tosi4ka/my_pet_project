@@ -17,6 +17,7 @@ export const GlobalStyles = () => (
         font-family: 'Geist', sans-serif;
         background-color: #fff;
         color: #333;
+        background-color: black;
       }
 
       a {

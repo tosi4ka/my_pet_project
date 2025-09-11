@@ -1,3 +1,5 @@
+import Gateway from './Gateway/page';
+
 export default function Home() {
-  return <p>123457</p>;
+  return <Gateway />;
 }
