@@ -1,14 +1,28 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+
 import { PrismaModule } from 'prisma/prisma.module';
-import { PrismaService } from 'prisma/prisma.service';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+
 import { AuthModule } from './auth/auth.module';
+import { OtpModule } from './otp/otp.module';
+import { TelegramModule } from './telegram/telegram.module';
 import { UserModule } from './users/user.module';
 
+import { HealthController } from './health/health.controller';
+import { MaintenanceService } from './maintenance/maintenance.service';
+
 @Module({
-  imports: [UserModule, PrismaModule, AuthModule],
-  controllers: [AppController],
-  providers: [AppService, PrismaService],
+  imports: [
+    PrismaModule,
+    UserModule,
+    OtpModule,
+    TelegramModule,
+    AuthModule,
+    ScheduleModule.forRoot(),
+  ],
+  controllers: [AppController, HealthController],
+  providers: [AppService, MaintenanceService],
 })
 export class AppModule {}

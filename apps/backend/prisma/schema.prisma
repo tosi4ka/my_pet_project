@@ -9,9 +9,62 @@ datasource db {
 }
 
 model User {
-  id           String  @id @default(uuid())
-  email        String  @unique
-  name         String?
-  password     String
-  refreshToken String?
+  id             String    @id @default(uuid())
+  email          String?   @unique
+  phone          String?   @unique
+  name           String?
+  password       String?
+  telegramChatId String?
+  refreshToken   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  Session        Session[]
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  phone     String
+  otpHash   String
+  tries     Int      @default(0)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+
+  @@index([phone])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+enum SessionStatus {
+  PENDING
+  AUTHENTICATED
+  EXPIRED
+}
+
+model Session {
+  id        String        @id @default(uuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  status    SessionStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  expiresAt DateTime
+  Transfer  Transfer[]
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Transfer {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  phone     String
+  sessionId String?
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+
+  @@index([token])
+  @@index([phone])
+  @@index([expiresAt])
 }

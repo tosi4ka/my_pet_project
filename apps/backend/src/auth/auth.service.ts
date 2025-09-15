@@ -11,7 +11,7 @@ import { UserService } from '../users/user.service';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 
-export type UserSafeView = { name?: string | null; email: string };
+export type UserSafeView = { name?: string | null; email?: string | null };
 export type AuthResult = {
   accessToken: string;
   refreshToken: string;
@@ -26,15 +26,39 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterUserDto): Promise<User> {
-    const existingUser = await this.userService.findByEmail(dto.email);
-    if (existingUser) throw new ConflictException('User exists');
+    if (dto.email) {
+      const existingUser = await this.userService.findByEmail(dto.email);
+      if (existingUser) throw new ConflictException('User exists');
+    }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const created = await this.userService.create({
-      ...dto,
-      password: hashedPassword,
-    });
+    let data: any = {
+      phone: dto.phone,
+      name: dto.name ?? null,
+      email: dto.email ?? null,
+    };
+
+    if (dto.password) {
+      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      data.password = hashedPassword;
+    } else {
+      data.password = null;
+    }
+
+    const created = await this.userService.create(data);
     return created;
+  }
+
+  async loginByUser(user: User): Promise<AuthResult> {
+    const { accessToken, refreshToken } = await this.getTokensForUser(user);
+    const refreshHash = await bcrypt.hash(refreshToken, 10);
+    await this.userService.setCurrentRefreshToken(user.id, refreshHash);
+
+    const userView: UserSafeView = {
+      name: user.name ?? null,
+      email: user.email ?? null,
+    };
+
+    return { accessToken, refreshToken, user: userView };
   }
 
   private async createAccessToken(user: User): Promise<string> {
@@ -61,7 +85,8 @@ export class AuthService {
 
   async login(dto: LoginUserDto): Promise<AuthResult> {
     const user = await this.userService.findByEmail(dto.email);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user || !user.password)
+      throw new UnauthorizedException('Invalid credentials');
 
     const isValid = await bcrypt.compare(dto.password, user.password);
     if (!isValid) throw new UnauthorizedException('Invalid credentials');

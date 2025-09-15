@@ -46,4 +46,36 @@ export class UserService {
       data: { refreshToken: refreshTokenHash },
     });
   }
+
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.prismaService.client.user.findUnique({ where: { phone } });
+  }
+
+  async createByPhone(phone: string): Promise<User> {
+    return this.prismaService.client.user.create({
+      data: { phone },
+    });
+  }
+
+  async setTelegramChatIdByPhone(phone: string, chatId: string): Promise<User> {
+    const existing = await this.findByPhone(phone);
+    if (existing) {
+      return this.prismaService.client.user.update({
+        where: { id: existing.id },
+        data: { telegramChatId: chatId },
+      });
+    } else {
+      return this.prismaService.client.user.create({
+        data: { phone, telegramChatId: chatId },
+      });
+    }
+  }
+
+  async getTelegramChatIdByPhone(phone: string): Promise<string | null> {
+    const user = await this.prismaService.client.user.findUnique({
+      where: { phone },
+      select: { telegramChatId: true },
+    });
+    return user?.telegramChatId ?? null;
+  }
 }
