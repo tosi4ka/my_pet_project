@@ -57,6 +57,8 @@ export class TransferService {
       throw new Error('Invalid or expired transfer token');
     }
 
+    const autoBind = process.env.ALLOW_AUTO_BIND_CHAT !== 'false';
+
     const existingUserForChat = await this.prisma.client.user.findFirst({
       where: { telegramChatId: String(chatId) },
     });
@@ -65,6 +67,7 @@ export class TransferService {
       try {
         const otp = await this.otpService.createAndStoreOtp(record.phone);
         const res: any = await this.telegramService.sendOtpToChat(chatId, otp);
+
         if (!res || res.ok === false) {
           this.logger.warn(
             `Telegram send failed for chatId=${chatId}, transfer=${record.id}`,
@@ -96,27 +99,128 @@ export class TransferService {
       }
     }
 
-    try {
-      await this.telegramService.requestContactFromChat(
-        chatId,
-        `To complete login for ${record.phone}, please press the "Share contact" button so I can verify it's your number.`,
-      );
+    if (
+      existingUserForChat &&
+      existingUserForChat.phone &&
+      existingUserForChat.phone !== record.phone
+    ) {
       this.logger.log(
-        `Requested contact from chatId=${chatId} for phone=${record.phone}`,
+        `ChatId ${chatId} already bound to different phone ${existingUserForChat.phone}, requesting contact to confirm`,
       );
+      try {
+        await this.telegramService.requestContactFromChat(
+          chatId,
+          `To complete login for ${record.phone}, please press the "Share contact" button so I can verify it's your number.`,
+        );
+      } catch (err) {
+        this.logger.error('Failed to request contact from chat', err);
+      }
       return {
         ok: false,
         needs_contact: true,
         sessionId: record.sessionId ?? null,
       };
-    } catch (err) {
-      this.logger.error('Failed to request contact from chat', err);
-      return {
-        ok: false,
-        error: err?.message ?? err,
-        sessionId: record.sessionId ?? null,
-      };
     }
+
+    if (!existingUserForChat) {
+      if (!autoBind) {
+        try {
+          await this.telegramService.requestContactFromChat(
+            chatId,
+            `To complete login for ${record.phone}, please press the "Share contact" button so I can verify it's your number.`,
+          );
+        } catch (err) {
+          this.logger.error('Failed to request contact from chat', err);
+        }
+        return {
+          ok: false,
+          needs_contact: true,
+          sessionId: record.sessionId ?? null,
+        };
+      }
+
+      try {
+        await this.prisma.client.user.upsert({
+          where: { phone: record.phone },
+          create: { phone: record.phone, telegramChatId: String(chatId) },
+          update: { telegramChatId: String(chatId) },
+        });
+        this.logger.log(`Auto-bound chatId=${chatId} to phone=${record.phone}`);
+      } catch (err) {
+        try {
+          const maybeUser = await this.prisma.client.user.findFirst({
+            where: { phone: record.phone },
+          });
+          if (maybeUser) {
+            await this.prisma.client.user.update({
+              where: { id: maybeUser.id },
+              data: { telegramChatId: String(chatId) },
+            });
+          } else {
+            await this.prisma.client.user.create({
+              data: { phone: record.phone, telegramChatId: String(chatId) },
+            });
+          }
+        } catch (err2) {
+          this.logger.error(
+            'Failed to upsert/create user for binding chatId',
+            err2,
+          );
+          return {
+            ok: false,
+            error: err2?.message ?? err2,
+            sessionId: record.sessionId ?? null,
+          };
+        }
+      }
+
+      try {
+        const otp = await this.otpService.createAndStoreOtp(record.phone);
+        const res: any = await this.telegramService.sendOtpToChat(chatId, otp);
+        if (!res || res.ok === false) {
+          this.logger.warn(
+            `Telegram send failed for chatId=${chatId}, transfer=${record.id}`,
+            res?.error ?? res,
+          );
+          return {
+            ok: false,
+            error: res?.error ?? 'send_failed',
+            sessionId: record.sessionId ?? null,
+          };
+        }
+
+        await this.prisma.client.transfer.update({
+          where: { id: record.id },
+          data: { consumed: true },
+        });
+
+        this.logger.log(
+          `Consumed transfer token=${token} and sent OTP to chatId=${chatId} (auto-bound)`,
+        );
+        return { ok: true, error: null, sessionId: record.sessionId ?? null };
+      } catch (err) {
+        this.logger.error(
+          'Error while sending OTP to Telegram after auto-bind',
+          err,
+        );
+        return {
+          ok: false,
+          error: err?.message ?? err,
+          sessionId: record.sessionId ?? null,
+        };
+      }
+    }
+
+    this.logger.warn('Unhandled consumeTransfer branch', {
+      token,
+      chatId,
+      recordId: record.id,
+    });
+    return {
+      ok: false,
+      error: 'unhandled',
+      sessionId: record.sessionId ?? null,
+    };
   }
 
   async consumeTransferByPhone(phone: string, chatId: string) {

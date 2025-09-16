@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { SessionService } from '../auth/session.service';
-import { OtpService } from '../otp/otp.service';
-import { TransferService } from '../telegram/transfer.service';
+import { SessionService } from 'src/auth';
+import { TransferService } from 'src/telegram';
+import { OtpService } from '../otp';
 
 @Injectable()
 export class MaintenanceService {

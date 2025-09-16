@@ -45,7 +45,7 @@ export class SessionService {
     return this.prisma.client.session.findUnique({ where: { id } });
   }
 
-  async isExpired(session: any) {
+  isExpired(session: { expiresAt?: Date | string | null } | null): boolean {
     if (!session) return true;
     const expiresAt = session.expiresAt ? new Date(session.expiresAt) : null;
     if (!expiresAt) return true;

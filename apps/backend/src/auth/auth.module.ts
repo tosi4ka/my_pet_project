@@ -4,9 +4,12 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { UserModule } from 'src/users/user.module';
 import { OtpModule } from '../otp/otp.module';
 import { TelegramModule } from '../telegram/telegram.module';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { SessionService } from './session.service';
+import { AuthController } from './controllers/auth.controller';
+import { NormalizePhonePipe } from './pipes/normalize-phone.pipe';
+import { AuthService } from './services/auth.service';
+import { PhoneLoginService } from './services/phone-login.service';
+import { SessionService } from './services/session.service';
+import { TokenService } from './services/token.service';
 
 @Module({
   imports: [
@@ -20,7 +23,13 @@ import { SessionService } from './session.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SessionService],
-  exports: [AuthService, SessionService],
+  providers: [
+    AuthService,
+    SessionService,
+    TokenService,
+    PhoneLoginService,
+    NormalizePhonePipe,
+  ],
+  exports: [AuthService, SessionService, TokenService, PhoneLoginService],
 })
 export class AuthModule {}
