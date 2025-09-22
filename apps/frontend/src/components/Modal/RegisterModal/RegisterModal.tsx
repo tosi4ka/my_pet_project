@@ -10,6 +10,7 @@ type RegisterModalProps = {
   open: boolean;
   onClose: () => void;
   onOpenLogin?: () => void;
+  onJustRegistered?: () => void;
 };
 function SafePortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -28,6 +29,7 @@ export default function RegisterModal({
   open,
   onClose,
   onOpenLogin,
+  onJustRegistered,
 }: RegisterModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
@@ -71,7 +73,10 @@ export default function RegisterModal({
         >
           <S.ModalInner>
             <S.LeftPanel>
-              <RegisterForm onOpenLogin={onOpenLogin} />
+              <RegisterForm
+                onOpenLogin={onOpenLogin}
+                onJustRegistered={onJustRegistered}
+              />
             </S.LeftPanel>
 
             <S.RightPanel>

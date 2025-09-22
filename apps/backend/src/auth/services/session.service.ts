@@ -41,8 +41,28 @@ export class SessionService {
     return session;
   }
 
+  async findActiveSessionForUser(userId: string) {
+    const now = new Date();
+    const session = await this.prisma.client.session.findFirst({
+      where: {
+        userId,
+        expiresAt: { gt: now },
+        OR: [{ status: 'PENDING' }, { status: 'AUTHENTICATED' }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return session;
+  }
+
   async getById(id: string) {
     return this.prisma.client.session.findUnique({ where: { id } });
+  }
+
+  async getByIdWithUser(id: string) {
+    return this.prisma.client.session.findUnique({
+      where: { id },
+      include: { user: true },
+    });
   }
 
   isExpired(session: { expiresAt?: Date | string | null } | null): boolean {
@@ -64,17 +84,78 @@ export class SessionService {
     }
   }
 
-  async cleanupExpired() {
+  async expireById(sessionId: string) {
+    try {
+      await this.prisma.client.session.update({
+        where: { id: sessionId },
+        data: { status: 'EXPIRED', expiresAt: new Date(0) },
+      });
+      this.logger.log(`Session ${sessionId} expired`);
+    } catch (err) {
+      this.logger.error('Error while expiring session', err);
+    }
+  }
+
+  async expireByUserId(userId: string) {
     try {
       const res = await this.prisma.client.session.updateMany({
-        where: { expiresAt: { lt: new Date() }, status: 'PENDING' },
+        where: { userId, status: { in: ['PENDING', 'AUTHENTICATED'] } },
+        data: { status: 'EXPIRED', expiresAt: new Date(0) },
+      });
+      this.logger.log(`Expired ${res.count} sessions for user ${userId}`);
+    } catch (err) {
+      this.logger.error('Error while expiring sessions by userId', err);
+    }
+  }
+
+  async touchSession(sessionId: string, ttlSec?: number) {
+    try {
+      const now = Date.now();
+      const ttl = Number(ttlSec ?? process.env.SESSION_TTL_SECONDS ?? 300);
+      const newExpiry = new Date(now + ttl * 1000);
+
+      const updated = await this.prisma.client.session.updateMany({
+        where: {
+          id: sessionId,
+          expiresAt: { gt: new Date() },
+        },
+        data: { expiresAt: newExpiry },
+      });
+
+      if (updated.count > 0) {
+        this.logger.debug(
+          `Touched session ${sessionId}, new expiresAt=${newExpiry.toISOString()}`,
+        );
+        return true;
+      } else {
+        this.logger.debug(
+          `Session ${sessionId} not touched (likely expired or not found)`,
+        );
+        return false;
+      }
+    } catch (err) {
+      this.logger.error('Error while touching session', err);
+      return false;
+    }
+  }
+
+  async cleanupExpired() {
+    try {
+      const now = new Date();
+      const res = await this.prisma.client.session.updateMany({
+        where: {
+          expiresAt: { lt: now },
+          status: { in: ['PENDING', 'AUTHENTICATED'] },
+        },
         data: { status: 'EXPIRED' },
       });
       this.logger.log(
-        `Session cleanup: marked ${res.count} PENDING sessions as EXPIRED`,
+        `Session cleanup: marked ${res.count} sessions as EXPIRED`,
       );
+      return res;
     } catch (err) {
       this.logger.error('Session cleanup error', err);
+      throw err;
     }
   }
 }

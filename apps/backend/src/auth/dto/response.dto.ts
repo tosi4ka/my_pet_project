@@ -6,7 +6,7 @@ export class LoginByPhoneResponseDto {
 
   @ApiProperty({
     description:
-      'Session id generated for this login attempt. Use when calling verify-otp.',
+      'Session id generated for this login attempt. Server may also set sessionId cookie.',
     example: 'a9f3b6d2-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
     required: false,
   })
@@ -14,11 +14,29 @@ export class LoginByPhoneResponseDto {
 
   @ApiProperty({
     description:
-      'Deep link URL to the Telegram bot. Client should redirect user to this URL.',
+      'Deep link URL to the Telegram bot (open if user needs to start bot).',
     example: 'https://t.me/My_learn_otp_bot?start=token123',
     required: false,
   })
   url?: string;
+
+  @ApiProperty({
+    description: 'If true — client should ask user to open bot',
+    required: false,
+  })
+  needs_bot?: boolean;
+
+  @ApiProperty({
+    description: 'Dev-only: returned OTP for testing',
+    required: false,
+  })
+  otp?: string;
+
+  @ApiProperty({
+    description: 'How OTP delivered (e.g. "telegram")',
+    required: false,
+  })
+  via?: string;
 }
 
 export class VerifyOtpResponseDto {
@@ -26,36 +44,15 @@ export class VerifyOtpResponseDto {
   ok: boolean;
 
   @ApiProperty({
-    description: 'JWT access token (returned after successful verification).',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    required: false,
-  })
-  accessToken?: string;
-
-  @ApiProperty({
-    description: 'JWT refresh token (store securely).',
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    required: false,
-  })
-  refreshToken?: string;
-}
-
-export class RequestOtpResponseDto {
-  @ApiProperty({ description: 'Operation result', example: true })
-  ok: boolean;
-
-  @ApiProperty({
     description:
-      'In development mode the server may optionally return the otp for testing. DO NOT return in production.',
-    example: '123456',
+      'Authenticated user object. Server also sets sessionId cookie.',
     required: false,
+    example: { id: '16ea1a1e-...', phone: '+33759622837' },
   })
-  otp?: string;
-
-  @ApiProperty({
-    description: 'Indicates how the OTP was delivered (e.g. "telegram").',
-    example: 'telegram',
-    required: false,
-  })
-  via?: string;
+  user?: {
+    id: string;
+    phone?: string | null;
+    name?: string | null;
+    email?: string | null;
+  };
 }

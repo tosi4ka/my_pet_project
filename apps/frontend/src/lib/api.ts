@@ -7,110 +7,52 @@ const api = axios.create({
   withCredentials: true,
 });
 
-export function setAuthToken(token: string | null) {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-}
-
-export function clearAuthToken() {
-  delete api.defaults.headers.common['Authorization'];
-}
-
 export function initApiAuth(): void {
-  if (typeof window === 'undefined') return;
-  const storedToken = localStorage.getItem('token');
-  if (storedToken) {
-    setAuthToken(storedToken);
+  return;
+}
+
+export function clearAuthToken(): void {
+  try {
+    delete api.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common['X-Session-Id'];
+  } catch {}
+}
+
+// let _lastBoundSessionId: string | null = null;
+export async function bindSessionHeader(): Promise<void> {
+  // if (typeof window === 'undefined') return;
+  // try {
+  //   const sess = await getSession();
+  //   const sid = (sess?.user as any)?.id ?? null;
+  //   if (sid && sid !== _lastBoundSessionId) {
+  //     api.defaults.headers.common['X-Session-Id'] = sid;
+  //     _lastBoundSessionId = sid;
+  //   } else if (!sid) {
+  //     delete api.defaults.headers.common['X-Session-Id'];
+  //     _lastBoundSessionId = null;
+  //   }
+  // } catch (err) {
+  //   delete api.defaults.headers.common['X-Session-Id'];
+  //   _lastBoundSessionId = null;
+  // }
+  return;
+}
+
+export function setSessionHeader(sessionId?: string | null) {
+  if (sessionId) {
+    api.defaults.headers.common['X-Session-Id'] = String(sessionId);
+  } else {
+    delete api.defaults.headers.common['X-Session-Id'];
   }
 }
 
-let isRefreshing = false;
-let refreshSubscribers: ((token: string | null) => void)[] = [];
-let refreshPromise: Promise<any> | null = null;
-
-function subscribeTokenRefresh(cb: (token: string | null) => void) {
-  refreshSubscribers.push(cb);
+export function clearClientAuthState(): void {
+  try {
+    localStorage.removeItem('user');
+  } catch {}
+  try {
+    delete api.defaults.headers.common['X-Session-Id'];
+  } catch {}
 }
-function onRefreshed(token: string | null) {
-  refreshSubscribers.forEach((cb) => cb(token));
-  refreshSubscribers = [];
-}
-
-export function performTokenRefresh(): Promise<any> {
-  if (refreshPromise) {
-    return refreshPromise;
-  }
-
-  refreshPromise = api
-    .post('/auth/refresh')
-    .then((r) => {
-      refreshPromise = null;
-      return r;
-    })
-    .catch((err) => {
-      refreshPromise = null;
-      throw err;
-    });
-
-  return refreshPromise;
-}
-
-// Response interceptor
-api.interceptors.response.use(
-  (res) => res,
-  async (error) => {
-    const originalRequest = error.config;
-    if (!originalRequest) return Promise.reject(error);
-
-    const url = originalRequest.url ?? '';
-    if (url.includes('/auth/refresh')) {
-      return Promise.reject(error);
-    }
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          subscribeTokenRefresh((token) => {
-            if (token) {
-              originalRequest.headers['Authorization'] = `Bearer ${token}`;
-              resolve(api(originalRequest));
-            } else {
-              reject(error);
-            }
-          });
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const r = await performTokenRefresh();
-        const newToken = r.data?.accessToken ?? null;
-        if (newToken) {
-          localStorage.setItem('token', newToken);
-          setAuthToken(newToken);
-        } else {
-          localStorage.removeItem('token');
-          clearAuthToken();
-        }
-        onRefreshed(newToken);
-        return api(originalRequest);
-      } catch (refreshError) {
-        onRefreshed(null);
-        localStorage.removeItem('token');
-        clearAuthToken();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
-    return Promise.reject(error);
-  },
-);
 
 export default api;

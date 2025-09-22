@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-type User = {
+export type User = {
   id: string;
   name?: string;
   email?: string;
@@ -9,37 +9,31 @@ type User = {
 
 type AuthState = {
   user: User | null;
-  token?: string | null;
+  loading: boolean;
 };
 
 const initialState: AuthState = {
-  user:
-    typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('user') || 'null')
-      : null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+  user: null,
+  loading: false,
 };
 
 const slice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setUser(state, action: PayloadAction<User>) {
+    setUser(state, action: PayloadAction<User | null>) {
       state.user = action.payload;
+      state.loading = false;
     },
-    setToken(state, action: PayloadAction<string>) {
-      state.token = action.payload;
+    setLoading(state, action: PayloadAction<boolean>) {
+      state.loading = action.payload;
     },
-    clearAuth(state) {
+    clearUser(state) {
       state.user = null;
-      state.token = null;
-      try {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-      } catch (e) {}
+      state.loading = false;
     },
   },
 });
 
-export const { setUser, clearAuth, setToken } = slice.actions;
+export const { setUser, clearUser, setLoading } = slice.actions;
 export default slice.reducer;

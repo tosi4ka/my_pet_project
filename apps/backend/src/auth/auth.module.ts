@@ -5,11 +5,11 @@ import { UserModule } from 'src/users/user.module';
 import { OtpModule } from '../otp/otp.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AuthController } from './controllers/auth.controller';
+import { SessionAuthGuard } from './guards/session-auth.guard';
 import { NormalizePhonePipe } from './pipes/normalize-phone.pipe';
 import { AuthService } from './services/auth.service';
 import { PhoneLoginService } from './services/phone-login.service';
 import { SessionService } from './services/session.service';
-import { TokenService } from './services/token.service';
 
 @Module({
   imports: [
@@ -26,10 +26,10 @@ import { TokenService } from './services/token.service';
   providers: [
     AuthService,
     SessionService,
-    TokenService,
     PhoneLoginService,
     NormalizePhonePipe,
+    SessionAuthGuard,
   ],
-  exports: [AuthService, SessionService, TokenService, PhoneLoginService],
+  exports: [AuthService, SessionService, PhoneLoginService, SessionAuthGuard],
 })
 export class AuthModule {}

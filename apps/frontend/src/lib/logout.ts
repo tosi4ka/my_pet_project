@@ -1,47 +1,48 @@
 import { clearAuthToken } from '@/lib/api';
 import { logoutRequest } from '@/lib/auth';
 import { store } from '@/store';
-import { clearAuth } from '@/store/slices/authSlice';
+import { clearUser } from '@/store/slices/authSlice';
+import { signOut } from 'next-auth/react';
 
 export type LogoutOpts = {
-  redirectTo?: string;
   onAfter?: () => void;
 };
 
 let _logoutInProgress = false;
 
-export async function logout(opts?: LogoutOpts): Promise<void> {
+export async function logout(_: LogoutOpts = {}): Promise<void> {
   if (_logoutInProgress) return;
   _logoutInProgress = true;
 
   try {
+    await signOut({ redirect: false });
+  } catch (e) {
+    console.error('signOut error', e);
+  }
+
+  try {
     try {
       await logoutRequest();
-    } catch {}
+    } catch (e) {}
 
     try {
-      store.dispatch(clearAuth());
-    } catch {}
+      store.dispatch(clearUser());
+    } catch (e) {}
 
     try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    } catch {}
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    } catch (e) {}
 
     try {
       clearAuthToken();
-    } catch {}
+    } catch (e) {}
 
-    if (opts?.onAfter) {
+    if (_ && _.onAfter) {
       try {
-        opts.onAfter();
-      } catch {}
-    }
-
-    const to = opts?.redirectTo ?? '/';
-    if (typeof window !== 'undefined') {
-      try {
-        window.location.replace(to);
+        _.onAfter();
       } catch {}
     }
   } finally {

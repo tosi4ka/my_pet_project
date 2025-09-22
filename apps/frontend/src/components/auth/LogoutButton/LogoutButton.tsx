@@ -1,6 +1,10 @@
 'use client';
 
 import { useLogout } from '@/hooks/useLogout';
+import api from '@/lib/api';
+import { useAppDispatch } from '@/store/hooks';
+import { clearUser } from '@/store/slices/authSlice';
+import { useRouter } from 'next/navigation';
 import React, { useCallback } from 'react';
 
 type LogoutButtonProps = {
@@ -18,12 +22,34 @@ export default function LogoutButton({
   ...rest
 }: LogoutButtonProps) {
   const { logout, isLoggingOut } = useLogout();
+  const dispatch = useAppDispatch();
+  const router = useRouter();
 
   const handleClick = useCallback(
     async (e?: React.MouseEvent<HTMLButtonElement>) => {
-      await logout({ redirectTo, onAfter });
+      try {
+        await logout({ onAfter });
+      } catch (err) {
+        console.error('logout hook error', err);
+      } finally {
+        try {
+          dispatch(clearUser());
+        } catch {}
+        try {
+          delete api.defaults.headers.common['X-Session-Id'];
+        } catch {}
+        if (redirectTo) {
+          try {
+            router.replace(redirectTo);
+          } catch (e) {
+            try {
+              router.push(redirectTo);
+            } catch {}
+          }
+        }
+      }
     },
-    [logout, redirectTo, onAfter],
+    [logout, redirectTo, onAfter, dispatch, router],
   );
 
   return (

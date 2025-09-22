@@ -1,17 +1,17 @@
 'use client';
 
-import { logout, type LogoutOpts } from '@/lib/logout';
+import { logout as logoutLib, type LogoutOpts } from '@/lib/logout';
 import { useCallback, useState } from 'react';
 
 export function useLogout() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const doLogout = useCallback(
+  const logout = useCallback(
     async (opts?: LogoutOpts) => {
       if (isLoggingOut) return;
       setIsLoggingOut(true);
       try {
-        await logout(opts);
+        await logoutLib(opts);
       } finally {
         setIsLoggingOut(false);
       }
@@ -19,5 +19,5 @@ export function useLogout() {
     [isLoggingOut],
   );
 
-  return { logout: doLogout, isLoggingOut };
+  return { logout, isLoggingOut };
 }

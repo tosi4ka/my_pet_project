@@ -18,7 +18,7 @@ export class PhoneLoginService {
     private readonly telegramService: TelegramService,
   ) {}
 
-  async startLoginByPhone(rawPhone: string) {
+  async startLoginByPhone(rawPhone: string, existingSessionId?: string) {
     const phone = normalizePhoneToE164(String(rawPhone ?? ''));
     let user = await this.userService.findByPhone(phone);
     if (!user) {
@@ -26,7 +26,18 @@ export class PhoneLoginService {
       this.logger.log(`Created user for phone=${phone}`);
     }
 
-    const session = await this.sessionService.createSessionForUser(user.id);
+    let session;
+    if (existingSessionId) {
+      session = await this.sessionService.getById(existingSessionId);
+      if (!session) {
+        this.logger.warn(
+          `Provided existingSessionId=${existingSessionId} not found, creating a new session for user ${user.id}`,
+        );
+        session = await this.sessionService.createSessionForUser(user.id);
+      }
+    } else {
+      session = await this.sessionService.createSessionForUser(user.id);
+    }
 
     const chatId = user.telegramChatId ?? null;
     if (chatId) {
@@ -34,6 +45,10 @@ export class PhoneLoginService {
         const otp = await this.otpService.createAndStoreOtp(phone);
 
         const res: any = await this.telegramService.sendOtpToChat(chatId, otp);
+        this.logger.debug(
+          `Telegram send result for chatId=${chatId}: ${JSON.stringify(res)}`,
+        );
+
         if (res && res.ok) {
           this.logger.log(
             `Sent OTP to existing chatId=${chatId} for phone=${phone}`,

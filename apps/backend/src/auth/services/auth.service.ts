@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -10,13 +9,19 @@ import * as bcrypt from 'bcryptjs';
 import { UserService } from '../../users/user.service';
 import { LoginUserDto } from '../dto/login-user.dto';
 import { RegisterUserDto } from '../dto/register-user.dto';
-import { TokenService } from './token.service';
+import { SessionService } from './session.service';
 
-export type UserSafeView = { name?: string | null; email?: string | null };
+export type UserSafeView = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
 export type AuthResult = {
-  accessToken: string;
-  refreshToken: string;
+  ok: boolean;
   user: UserSafeView;
+  sessionId: string;
 };
 
 const BCRYPT_SALT_ROUNDS = 10;
@@ -25,7 +30,7 @@ const BCRYPT_SALT_ROUNDS = 10;
 export class AuthService {
   constructor(
     private readonly userService: UserService,
-    private readonly tokenService: TokenService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async register(dto: RegisterUserDto): Promise<User> {
@@ -45,21 +50,7 @@ export class AuthService {
       data.password = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
     }
 
-    const created = await this.userService.create(data);
-    return created;
-  }
-
-  async loginByUser(user: User): Promise<AuthResult> {
-    const { accessToken, refreshToken } = this.tokenService.createTokens(
-      user.id,
-    );
-    await this.tokenService.persistRefreshTokenForUser(user.id, refreshToken);
-
-    return {
-      accessToken,
-      refreshToken,
-      user: this.buildUserView(user),
-    };
+    return this.userService.create(data);
   }
 
   async login(dto: LoginUserDto): Promise<AuthResult> {
@@ -73,51 +64,26 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const { accessToken, refreshToken } = this.tokenService.createTokens(
-      user.id,
-    );
-    await this.tokenService.persistRefreshTokenForUser(user.id, refreshToken);
+    const session = await this.sessionService.createSessionForUser(user.id);
+    await this.sessionService.markAuthenticated(session.id);
 
     return {
-      accessToken,
-      refreshToken,
-      user: this.buildUserView(user),
-    };
-  }
-  async refreshTokens(refreshToken: string): Promise<AuthResult> {
-    const verified = this.tokenService.verifyRefreshToken(refreshToken);
-    if (!verified || typeof verified.sub !== 'string') {
-      throw new BadRequestException('Invalid token payload');
-    }
-    const userId = verified.sub;
-
-    const user = await this.userService.getById(userId);
-    if (!user || typeof user.refreshToken !== 'string') {
-      throw new UnauthorizedException('No refresh stored');
-    }
-
-    const isValid = await bcrypt.compare(refreshToken, user.refreshToken);
-    if (!isValid) throw new UnauthorizedException('Invalid refresh token');
-
-    const { accessToken, refreshToken: newRefresh } =
-      this.tokenService.createTokens(user.id);
-    await this.tokenService.persistRefreshTokenForUser(user.id, newRefresh);
-
-    return {
-      accessToken,
-      refreshToken: newRefresh,
+      ok: true,
+      sessionId: session.id,
       user: this.buildUserView(user),
     };
   }
 
-  async logoutByRefreshToken(refreshToken: string): Promise<void> {
-    const verified = this.tokenService.verifyRefreshToken(refreshToken);
-    if (!verified || typeof verified.sub !== 'string') return;
-    const userId = verified.sub;
-    await this.userService.setCurrentRefreshToken(userId, null);
+  async logout(userId: string): Promise<void> {
+    await this.sessionService.expireByUserId(userId);
   }
 
   private buildUserView(user: User): UserSafeView {
-    return { name: user.name ?? null, email: user.email ?? null };
+    return {
+      id: user.id,
+      name: user.name ?? null,
+      email: user.email ?? null,
+      phone: user.phone ?? null,
+    };
   }
 }

@@ -15,20 +15,36 @@ export default function GatewayPage() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
-
+  const [justRegistered, setJustRegistered] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showVerifyNotice, setShowVerifyNotice] = useState(false);
+
   useEffect(() => setMounted(true), []);
 
   const user = useAppSelector((s) => s.auth.user);
+  const isAuthenticated = Boolean(mounted && user && (user as any).id);
 
   useEffect(() => {
     if (!mounted) return;
-    if (user) {
+    if (isAuthenticated) {
       setLoginOpen(false);
-      setRegisterOpen(false);
       setForgotOpen(false);
+      if (!justRegistered) {
+        setRegisterOpen(false);
+      }
     }
-  }, [user, mounted]);
+  }, [isAuthenticated, mounted, justRegistered]);
+
+  useEffect(() => {
+    if (!registerOpen && justRegistered) {
+      setJustRegistered(false);
+    }
+  }, [registerOpen, justRegistered]);
+
+  const handleJustRegistered = () => {
+    setRegisterOpen(false);
+    setShowVerifyNotice(true);
+  };
 
   const openLogin = () => setLoginOpen(true);
   const openRegister = () => setRegisterOpen(true);
@@ -40,7 +56,7 @@ export default function GatewayPage() {
         <S.Brand onClick={() => router.push('/')}>MyApp</S.Brand>
 
         <S.NavItems>
-          {!mounted || !user ? (
+          {!isAuthenticated ? (
             <>
               <S.NavButton onClick={openGuest} aria-label="Guest">
                 Guest
@@ -52,23 +68,13 @@ export default function GatewayPage() {
                 Register
               </S.NavButton>
             </>
-          ) : user ? (
+          ) : (
             <>
-              <S.NavButton aria-label="User" title={user.email ?? undefined}>
-                {user.name ?? user.email ?? 'User'}
+              <S.NavButton aria-label="User" title={user?.email ?? undefined}>
+                {user?.name ?? user?.email ?? 'User'}
               </S.NavButton>
 
               <S.NavButton as={LogoutButton} />
-            </>
-          ) : (
-            <>
-              <S.NavButton onClick={openLogin} aria-label="Login" primary>
-                Login
-              </S.NavButton>
-
-              <S.NavButton onClick={openRegister} aria-label="Register">
-                Register
-              </S.NavButton>
             </>
           )}
         </S.NavItems>
@@ -94,6 +100,7 @@ export default function GatewayPage() {
       <RegisterModal
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}
+        onJustRegistered={handleJustRegistered}
       />
       <ForgotPasswordModal
         open={forgotOpen}

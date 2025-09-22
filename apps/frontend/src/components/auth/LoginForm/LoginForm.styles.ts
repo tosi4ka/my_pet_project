@@ -68,3 +68,67 @@ export const ForgotPasswordLink = styled.button`
     cursor: default;
   }
 `;
+
+/* Phone / OTP UI */
+
+export const InfoText = styled.div`
+  color: #cfcfd6;
+  font-size: 13px;
+`;
+
+export const RowBetween = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+`;
+
+export const SecondaryBtn = styled.button`
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #cfcfd6;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+`;
+
+export const OpenLink = styled.a`
+  display: inline-block;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1e293b;
+  color: #fff;
+  text-decoration: none;
+`;
+
+export const DevOtp = styled.div`
+  margin-top: 8px;
+  color: #9ca3af;
+  font-size: 12px;
+`;
+
+/* Round messenger buttons row */
+export const RoundRowWrap = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+`;
+
+export const RoundBtn = styled.button`
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid #2a2a2a;
+  background: #0c0c0c;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+  &:hover {
+    transform: translateY(-3px);
+  }
+`;
+
+export const RoundIcon = styled.div`
+  font-size: 18px;
+`;
